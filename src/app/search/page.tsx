@@ -21,7 +21,6 @@ type SearchResponse = {
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const PLACEHOLDER = "/img/poster-placeholder.png";
-const STORAGE_KEY = "moviestack.collection.v1";
 
 /**
  * Server-rendered Search Page

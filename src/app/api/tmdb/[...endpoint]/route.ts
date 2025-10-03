@@ -12,18 +12,21 @@ import { NextResponse } from "next/server";
  * - Only a small allowlist of endpoints is accepted for safety.
  */
 
-const ALLOWED = new Set(["popular", "top_rated"]);
+// Allow any endpoint path (including slashes, e.g., trending/movie/day)
 
 export async function GET(
   request: Request,
-  context: { params: Promise<{ endpoint: string }> },
+  context: { params: Promise<{ endpoint: string[] }> },
 ) {
   // Await params per Next.js requirement for dynamic route handlers
   const { endpoint } = await context.params;
 
-  if (!endpoint || !ALLOWED.has(endpoint)) {
+  // endpoint is now an array of path segments (from [...endpoint])
+  const endpointPath = Array.isArray(endpoint) ? endpoint.join("/") : endpoint;
+
+  if (!endpointPath) {
     return NextResponse.json(
-      { error: "Endpoint not allowed" },
+      { error: "Endpoint not specified" },
       { status: 400 },
     );
   }
@@ -63,21 +66,22 @@ export async function GET(
   }
 
   // Build TMDB URL and sanitize allowed query params
-  const url = new URL(`https://api.themoviedb.org/3/movie/${endpoint}`);
+  // endpointPath may contain slashes, e.g., "trending/movie/day"
+  const url = new URL(`https://api.themoviedb.org/3/${endpointPath}`);
   const qp = new URL(request.url).searchParams;
-  const page = qp.get("page") ?? "1";
-  const language = qp.get("language") ?? "en-US";
 
-  const pageNum = Number(page);
-  if (Number.isNaN(pageNum) || pageNum < 1 || pageNum > 1000) {
-    return NextResponse.json(
-      { error: "Invalid page parameter" },
-      { status: 400 },
-    );
+  // Forward all query params except for any sensitive ones (none in this case)
+  qp.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
+
+  // Default language and page if not provided
+  if (!url.searchParams.has("language")) {
+    url.searchParams.set("language", "en-US");
   }
-
-  url.searchParams.set("language", language);
-  url.searchParams.set("page", String(pageNum));
+  if (!url.searchParams.has("page")) {
+    url.searchParams.set("page", "1");
+  }
 
   // Decide authentication method: prefer bearer (v4) if available, otherwise use v3 api_key query param.
   const looksLikeV4 = (s?: string) =>

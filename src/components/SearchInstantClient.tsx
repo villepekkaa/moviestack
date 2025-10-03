@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
+import { useCollection } from "@/contexts/CollectionContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 type TmdbMovie = {
   id: number;
@@ -19,7 +21,6 @@ type SearchResponse = {
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const PLACEHOLDER = "/img/poster-placeholder.png";
-const STORAGE_KEY = "moviestack.collection.v1";
 
 function debounce<T extends (...args: any[]) => void>(fn: T, ms: number) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -47,40 +48,24 @@ export default function SearchInstantClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // For Save/Unsave
-  const [savedMap, setSavedMap] = useState<{ [id: string]: TmdbMovie }>({});
-
-  // Load saved movies from localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        const map: { [id: string]: TmdbMovie } = {};
-        arr.forEach((m: TmdbMovie) => (map[String(m.id)] = m));
-        setSavedMap(map);
-      }
-    } catch {}
-  }, []);
+  // Collection hooks
+  const { isAuthenticated } = useAuth();
+  const {
+    isInCollection,
+    addToCollection,
+    removeFromCollection,
+    isSaving,
+    isRemoving,
+  } = useCollection();
 
   // Save/Unsave logic
-  function toggleSave(movie: TmdbMovie) {
-    setSavedMap((prev) => {
-      const newMap = { ...prev };
-      const key = String(movie.id);
-      if (newMap[key]) {
-        delete newMap[key];
-      } else {
-        newMap[key] = movie;
-      }
-      try {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(Object.values(newMap)),
-        );
-      } catch {}
-      return newMap;
-    });
+  async function toggleSave(movie: TmdbMovie) {
+    const inCollection = isInCollection(movie.id);
+    if (inCollection) {
+      await removeFromCollection(movie.id);
+    } else {
+      await addToCollection(movie);
+    }
   }
 
   // Debounced search
@@ -208,7 +193,7 @@ export default function SearchInstantClient({
               const posterSrc = m.poster_path
                 ? `${IMAGE_BASE}${m.poster_path}`
                 : PLACEHOLDER;
-              const isSaved = !!savedMap[String(m.id)];
+              const isSaved = isInCollection(m.id);
               return (
                 <article key={m.id} className="rounded-md bg-transparent">
                   <div className="rounded-md overflow-hidden shadow-sm bg-gray-900/10">
@@ -239,16 +224,23 @@ export default function SearchInstantClient({
                           : "—"}
                       </p>
                       <div className="mt-3 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          className={`save-toggle rounded px-3 py-1 text-sm font-medium border ${
-                            isSaved ? "bg-foreground text-background" : ""
-                          }`}
-                          aria-pressed={isSaved}
-                          onClick={() => toggleSave(m)}
-                        >
-                          {isSaved ? "Saved" : "Save"}
-                        </button>
+                        {isAuthenticated && (
+                          <button
+                            type="button"
+                            className={`save-toggle rounded px-3 py-1 text-sm font-medium border ${
+                              isSaved ? "bg-foreground text-background" : ""
+                            }`}
+                            aria-pressed={isSaved}
+                            onClick={() => toggleSave(m)}
+                            disabled={isSaving || isRemoving}
+                          >
+                            {isSaving || isRemoving
+                              ? "..."
+                              : isSaved
+                                ? "Saved"
+                                : "Save"}
+                          </button>
+                        )}
                         <a
                           href={`https://www.themoviedb.org/movie/${m.id}`}
                           className="text-xs text-muted-foreground hover:underline"

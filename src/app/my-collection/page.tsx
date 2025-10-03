@@ -1,79 +1,42 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useRequireAuth } from "@/contexts/AuthContext";
+import { useCollection } from "@/contexts/CollectionContext";
 import Image from "next/image";
 import Link from "next/link";
 
-type TmdbMovie = {
-  id: number;
-  title: string;
-  poster_path?: string | null;
-  release_date?: string | null;
-  vote_average?: number | null;
-  overview?: string | null;
-};
-
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const PLACEHOLDER = "/img/poster-placeholder.png";
-const STORAGE_KEY = "moviestack.collection.v1";
+
+// Helper to format date
+function formatAddedAt(iso: string | undefined) {
+  if (!iso) return "Unknown";
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return "Unknown";
+  return `Added ${date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  })}`;
+}
 
 export default function MyCollectionPage() {
-  const { isAuthenticated, isLoading } = useRequireAuth();
-  const [movies, setMovies] = useState<TmdbMovie[]>([]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadCollection();
-    }
-  }, [isAuthenticated]);
-
-  const loadCollection = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const collection = JSON.parse(raw);
-        setMovies(Array.isArray(collection) ? collection : []);
-      }
-    } catch (error) {
-      console.error("Failed to load collection:", error);
-    }
-  };
-
-  const removeMovie = (movieId: number) => {
-    try {
-      const updated = movies.filter((m) => m.id !== movieId);
-      setMovies(updated);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch (error) {
-      console.error("Failed to remove movie:", error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null; // Will redirect via useRequireAuth
-  }
+  useRequireAuth();
+  const { collection, isLoading, removeFromCollection } = useCollection();
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       <header className="mb-8">
         <h1 className="text-3xl font-semibold">My Collection</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Movies you've saved for later. ({movies.length} item
-          {movies.length !== 1 ? "s" : ""})
+          Movies you've saved for later. ({collection.length} item
+          {collection.length !== 1 ? "s" : ""})
         </p>
       </header>
 
-      {movies.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center text-muted-foreground">Loading...</div>
+      ) : collection.length === 0 ? (
         <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-8 text-center">
           <p className="text-lg mb-3">No items in your collection yet</p>
           <p className="text-sm text-muted-foreground mb-4">
@@ -88,13 +51,14 @@ export default function MyCollectionPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {movies.map((movie) => {
+          {collection.map((item) => {
+            const movie = item.movieData;
             const posterSrc = movie.poster_path
               ? `${IMAGE_BASE}${movie.poster_path}`
               : PLACEHOLDER;
 
             return (
-              <article key={movie.id} className="rounded-md bg-transparent">
+              <article key={item.id} className="rounded-md bg-transparent">
                 <div className="rounded-md overflow-hidden shadow-sm bg-gray-900/10">
                   <div className="bg-gray-100 dark:bg-gray-800 w-full aspect-[2/3] relative overflow-hidden">
                     <Image
@@ -125,11 +89,14 @@ export default function MyCollectionPage() {
                         ? Number(movie.vote_average).toFixed(1)
                         : "—"}
                     </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatAddedAt(item.addedAt)}
+                    </p>
 
                     <div className="mt-3 flex items-end justify-between gap-2 flex-1">
                       <button
                         type="button"
-                        onClick={() => removeMovie(movie.id)}
+                        onClick={() => removeFromCollection(movie.id)}
                         className="rounded px-3 py-1 text-sm font-medium border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 transition-colors"
                       >
                         Remove

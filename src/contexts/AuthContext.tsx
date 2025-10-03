@@ -1,5 +1,11 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 
 interface User {
   id: string;
@@ -63,9 +69,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!accessToken) return;
 
-    const interval = setInterval(() => {
-      refreshAuth();
-    }, 14 * 60 * 1000); // 14 minutes
+    const interval = setInterval(
+      () => {
+        refreshAuth();
+      },
+      14 * 60 * 1000,
+    ); // 14 minutes
 
     return () => clearInterval(interval);
   }, [accessToken, refreshAuth]);
@@ -82,6 +91,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
       throw new Error(data.error || "Login failed");
     }
+
+    // Clear any old localStorage collection on login
+    try {
+      localStorage.removeItem("moviestack.collection.v1");
+    } catch {}
 
     const data = await response.json();
     setUser(data.user);
@@ -115,6 +129,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Clear any old localStorage collection on logout
+      try {
+        localStorage.removeItem("moviestack.collection.v1");
+      } catch {}
       setUser(null);
       setAccessToken(null);
     }

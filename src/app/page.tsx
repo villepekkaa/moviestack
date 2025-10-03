@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCollection } from "@/contexts/CollectionContext";
 
 /**
  * Home page: fetches popular + top-rated movies from TMDB (if NEXT_PUBLIC_TMDB_API_KEY is present)
@@ -24,7 +25,6 @@ type Movie = {
 };
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-const STORAGE_KEY = "moviestack.collection.v1";
 
 const SAMPLE_MOVIES: Movie[] = [
   {
@@ -61,62 +61,20 @@ const SAMPLE_MOVIES: Movie[] = [
   },
 ];
 
-function useTmdbFetcher(endpoint: string, apiKey: string | undefined) {
+function useTmdbFetcher(endpoint: string, _apiKey: string | undefined) {
   const [items, setItems] = useState<Movie[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function fetchData() {
-      // First try the server proxy route (/api/tmdb/:endpoint). This keeps your TMDB key secret if it's
-      // configured server-side as TMDB_API_KEY and the proxy is available.
       try {
         const proxyRes = await fetch(`/api/tmdb/${endpoint}`);
-        if (proxyRes.ok) {
-          const data = await proxyRes.json();
-          if (cancelled) return;
-          const mapped: Movie[] = (data.results || []).map((r: any) => ({
-            id: r.id,
-            title: r.title || r.name,
-            poster_path: r.poster_path,
-            release_date: r.release_date,
-            vote_average: r.vote_average,
-            overview: r.overview,
-          }));
-          setItems(mapped);
-          setError(null);
-          return;
-        } else {
-          // If proxy returned JSON with an error field, we'll fall back to client fetch below.
-          try {
-            const payload = await proxyRes.json();
-            if (!payload || !payload.error) {
-              throw new Error(`Proxy error ${proxyRes.status}`);
-            }
-            // else: continue to client-side fallback
-          } catch (e) {
-            // Parsing failed or other error — fall through to client fetch
-          }
+        if (!proxyRes.ok) {
+          const payload = await proxyRes.json().catch(() => null);
+          throw new Error(payload?.error || `Proxy error ${proxyRes.status}`);
         }
-      } catch (proxyErr) {
-        // Proxy unavailable or network error — fall back to client-side fetch
-      }
-
-      // Fallback: attempt client-side fetch using NEXT_PUBLIC_TMDB_API_KEY if provided
-      if (!apiKey) {
-        setItems(null);
-        setError("No API key provided (and server proxy unavailable)");
-        return;
-      }
-
-      try {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/movie/${endpoint}?api_key=${encodeURIComponent(
-            apiKey,
-          )}&language=en-US&page=1`,
-        );
-        if (!res.ok) throw new Error(`TMDB error ${res.status}`);
-        const data = await res.json();
+        const data = await proxyRes.json();
         if (cancelled) return;
         const mapped: Movie[] = (data.results || []).map((r: any) => ({
           id: r.id,
@@ -139,7 +97,88 @@ function useTmdbFetcher(endpoint: string, apiKey: string | undefined) {
     return () => {
       cancelled = true;
     };
-  }, [endpoint, apiKey]);
+  }, [endpoint]);
+
+  return { items, error };
+}
+
+// Fetch genres from TMDB
+function useGenresFetcher() {
+  const [genres, setGenres] = useState<{ id: number; name: string }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchGenres() {
+      try {
+        const res = await fetch("/api/tmdb/genre/movie/list");
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          throw new Error(payload?.error || `Proxy error ${res.status}`);
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        setGenres(data.genres || []);
+        setError(null);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message ?? "Fetch error");
+        setGenres([]);
+      }
+    }
+    fetchGenres();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { genres, error };
+}
+
+// Fetch movies for a genre
+function useGenreMoviesFetcher(genreId: number | null) {
+  const [items, setItems] = useState<Movie[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!genreId) {
+      setItems(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        const res = await fetch(
+          `/api/tmdb/discover/movie?with_genres=${genreId}`,
+        );
+        if (!res.ok) {
+          const payload = await res.json().catch(() => null);
+          throw new Error(payload?.error || `Proxy error ${res.status}`);
+        }
+        const data = await res.json();
+        if (cancelled) return;
+        const mapped: Movie[] = (data.results || []).map((r: any) => ({
+          id: r.id,
+          title: r.title || r.name,
+          poster_path: r.poster_path,
+          release_date: r.release_date,
+          vote_average: r.vote_average,
+          overview: r.overview,
+        }));
+        setItems(mapped);
+        setError(null);
+      } catch (err: any) {
+        if (cancelled) return;
+        setError(err?.message ?? "Fetch error");
+        setItems(null);
+      }
+    }
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [genreId]);
 
   return { items, error };
 }
@@ -147,38 +186,21 @@ function useTmdbFetcher(endpoint: string, apiKey: string | undefined) {
 function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { isAuthenticated } = useAuth();
-  const [savedMovies, setSavedMovies] = useState<{ [id: string]: Movie }>({});
+  const {
+    isInCollection,
+    addToCollection,
+    removeFromCollection,
+    isSaving,
+    isRemoving,
+  } = useCollection();
 
-  // Load saved movies from localStorage
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const arr = JSON.parse(raw);
-        const map: { [id: string]: Movie } = {};
-        arr.forEach((m: Movie) => (map[String(m.id)] = m));
-        setSavedMovies(map);
-      }
-    } catch {}
-  }, []);
-
-  function toggleSave(movie: Movie) {
-    setSavedMovies((prev) => {
-      const newMap = { ...prev };
-      const key = String(movie.id);
-      if (newMap[key]) {
-        delete newMap[key];
-      } else {
-        newMap[key] = movie;
-      }
-      try {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(Object.values(newMap)),
-        );
-      } catch {}
-      return newMap;
-    });
+  async function toggleSave(movie: Movie) {
+    const inCollection = isInCollection(movie.id);
+    if (inCollection) {
+      await removeFromCollection(movie.id);
+    } else {
+      await addToCollection(movie);
+    }
   }
 
   function scrollByOffset(offset: number) {
@@ -227,7 +249,7 @@ function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
         role="list"
       >
         {movies.map((m) => {
-          const isSaved = !!savedMovies[String(m.id)];
+          const isSaved = isInCollection(m.id);
           const posterSrc = m.poster_path
             ? m.poster_path.startsWith("http")
               ? m.poster_path
@@ -263,7 +285,8 @@ function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
                 {isAuthenticated && (
                   <button
                     onClick={() => toggleSave(m)}
-                    className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-all ${
+                    disabled={isSaving || isRemoving}
+                    className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-all disabled:opacity-50 ${
                       isSaved
                         ? "bg-green-500/90 text-white"
                         : "bg-black/50 text-white hover:bg-black/70"
@@ -324,15 +347,20 @@ export default function Home() {
   const apiKey = (process.env.NEXT_PUBLIC_TMDB_API_KEY as string) || "";
   const { isAuthenticated } = useAuth();
 
+  const { items: trending, error: trendingError } = useTmdbFetcher(
+    "trending/movie/day",
+    apiKey,
+  );
   const { items: popular, error: popularError } = useTmdbFetcher(
-    "popular",
+    "movie/popular",
     apiKey,
   );
   const { items: topRated, error: topRatedError } = useTmdbFetcher(
-    "top_rated",
+    "movie/top_rated",
     apiKey,
   );
 
+  const trendingMovies = trending ?? SAMPLE_MOVIES;
   const popularMovies = popular ?? SAMPLE_MOVIES;
   const topRatedMovies = topRated ?? SAMPLE_MOVIES;
 
@@ -341,22 +369,28 @@ export default function Home() {
       <header className="mb-8">
         <h1 className="text-3xl font-bold">MovieStack</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Discover popular and top-rated movies from The Movie Database.
+          Discover trending, popular, top-rated, and genre movies from The Movie
+          Database.
           {isAuthenticated &&
             " Click the + icon to save movies to your collection!"}
         </p>
       </header>
 
       <main>
+        <Carousel movies={trendingMovies} title="Trending Now" />
         <Carousel movies={popularMovies} title="Most Popular" />
         <Carousel movies={topRatedMovies} title="Top Rated" />
 
-        {(popularError || topRatedError) && (
+        {(trendingError || popularError || topRatedError) && (
           <div className="mt-4 text-sm text-red-600">
+            {trendingError && <div>Trending fetch error: {trendingError}</div>}
             {popularError && <div>Popular fetch error: {popularError}</div>}
             {topRatedError && <div>Top rated fetch error: {topRatedError}</div>}
           </div>
         )}
+
+        {/* Genre Listing and Genre Movies */}
+        <GenreSection />
       </main>
 
       <footer className="mt-12 text-sm text-center text-muted-foreground">
@@ -366,5 +400,130 @@ export default function Home() {
         </a>
       </footer>
     </div>
+  );
+}
+
+// GenreSection component
+function GenreSection() {
+  const { genres, error: genresError } = useGenresFetcher();
+  const [selectedGenre, setSelectedGenre] = useState<number | null>(null);
+  const { items: genreMovies, error: genreMoviesError } =
+    useGenreMoviesFetcher(selectedGenre);
+
+  return (
+    <section className="mt-12">
+      <h2 className="text-xl font-semibold mb-4">Browse by Genre</h2>
+      {genresError && (
+        <div className="mb-4 text-red-600 text-sm">
+          Genre fetch error: {genresError}
+        </div>
+      )}
+      <div className="relative mb-6">
+        {/* Left arrow */}
+        <button
+          type="button"
+          aria-label="Scroll genres left"
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-20 rounded-full shadow p-1.5 border
+            bg-white text-black border-gray-300 hover:bg-gray-100
+            dark:bg-white dark:text-black dark:border-gray-300 dark:hover:bg-gray-200
+            transition-colors"
+          style={{ display: "block" }}
+          onClick={() => {
+            const el = document.getElementById("genre-scroll-bar");
+            if (el) el.scrollBy({ left: -200, behavior: "smooth" });
+          }}
+        >
+          <svg width={18} height={18} viewBox="0 0 20 20" fill="none">
+            <path
+              d="M13 16l-5-6 5-6"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        {/* Genre scroll bar */}
+        <div
+          id="genre-scroll-bar"
+          className="flex gap-2 overflow-x-auto pb-2 no-scrollbar px-8"
+          style={{ scrollBehavior: "smooth" }}
+        >
+          {genres.map((genre) => (
+            <button
+              key={genre.id}
+              className={`px-4 py-1.5 rounded-full border text-sm whitespace-nowrap transition-colors ${
+                selectedGenre === genre.id
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-white dark:bg-black border-gray-300 dark:border-gray-700 text-foreground hover:bg-gray-100 dark:hover:bg-gray-900"
+              }`}
+              onClick={() =>
+                setSelectedGenre(selectedGenre === genre.id ? null : genre.id)
+              }
+            >
+              {genre.name}
+            </button>
+          ))}
+        </div>
+        {/* Right arrow */}
+        <button
+          type="button"
+          aria-label="Scroll genres right"
+          className="absolute right-0 top-1/2 -translate-y-1/2 z-20 rounded-full shadow p-1.5 border
+            bg-white text-black border-gray-300 hover:bg-gray-100
+            dark:bg-white dark:text-black dark:border-gray-300 dark:hover:bg-gray-200
+            transition-colors"
+          style={{ display: "block" }}
+          onClick={() => {
+            const el = document.getElementById("genre-scroll-bar");
+            if (el) el.scrollBy({ left: 200, behavior: "smooth" });
+          }}
+        >
+          <svg width={18} height={18} viewBox="0 0 20 20" fill="none">
+            <path
+              d="M7 4l5 6-5 6"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        {/* Fade overlays */}
+        <div
+          className="pointer-events-none absolute left-0 top-0 h-full w-8 z-10"
+          style={{
+            background:
+              "linear-gradient(to right, var(--background, #fff) 70%, transparent 100%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute right-0 top-0 h-full w-8 z-10"
+          style={{
+            background:
+              "linear-gradient(to left, var(--background, #fff) 70%, transparent 100%)",
+          }}
+        />
+      </div>
+      {selectedGenre && (
+        <>
+          <h3 className="text-lg font-medium mb-2">
+            {genres.find((g) => g.id === selectedGenre)?.name} Movies
+          </h3>
+          {genreMoviesError && (
+            <div className="mb-4 text-red-600 text-sm">
+              Genre movies fetch error: {genreMoviesError}
+            </div>
+          )}
+          {genreMovies ? (
+            <Carousel movies={genreMovies} title="" />
+          ) : (
+            <div className="text-muted-foreground text-sm">
+              Loading movies...
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }

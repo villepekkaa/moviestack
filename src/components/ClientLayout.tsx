@@ -79,6 +79,8 @@ function Footer() {
   );
 }
 
+import { CollectionProvider } from "@/contexts/CollectionContext";
+
 export default function ClientLayout({
   children,
 }: {
@@ -86,11 +88,13 @@ export default function ClientLayout({
 }) {
   return (
     <AuthProvider>
-      <HeaderContent />
-      <main className="flex-1 max-w-5xl mx-auto px-6 py-8 w-full">
-        {children}
-      </main>
-      <Footer />
+      <CollectionProvider>
+        <HeaderContent />
+        <main className="flex-1 max-w-5xl mx-auto px-6 py-8 w-full">
+          {children}
+        </main>
+        <Footer />
+      </CollectionProvider>
     </AuthProvider>
   );
 }
