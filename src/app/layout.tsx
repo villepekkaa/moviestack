@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
+import NavSearch from "../components/NavSearch";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,9 +27,42 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
-        {children}
+        <header className="bg-white/80 dark:bg-black/80 border-b">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-6 flex-1">
+              <span className="font-bold text-lg">MovieStack</span>
+              <nav>
+                <ul className="flex gap-4">
+                  <li>
+                    <Link href="/" className="hover:underline">
+                      Home
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/my-collection" className="hover:underline">
+                      My Collection
+                    </Link>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+            <div className="ml-auto">
+              <NavSearch />
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-5xl mx-auto px-6 py-8 w-full">
+          {children}
+        </main>
+
+        <footer className="border-t">
+          <div className="max-w-5xl mx-auto px-6 py-6 text-sm text-center">
+            © {new Date().getFullYear()} MovieStack
+          </div>
+        </footer>
       </body>
     </html>
   );

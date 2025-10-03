@@ -1,26 +1,204 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+    --background: #ffffff;
+    --foreground: #171717;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+    :root {
+        --background: #0a0a0a;
+        --foreground: #ededed;
+    }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Carousel / track utilities
+   - `.carousel-track` is the scroll container (horizontal)
+   - uses scroll-snap for a nicer snapping behavior
+   - hides native scrollbar across browsers while preserving scroll interaction
+*/
+.carousel-track {
+    display: flex;
+    gap: 0.75rem; /* slightly tighter gap so posters appear denser */
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+    align-items: start;
+    padding-bottom: 6px; /* reduced padding to avoid extra vertical gap */
+    margin-bottom: 0;
+}
+
+/* children should snap to the start of the container */
+.carousel-track > * {
+    scroll-snap-align: start;
+}
+
+/* Hide native scrollbar but keep scrolling functional.
+   Some browsers still render a subtle gutter; this combination improves coverage.
+*/
+.carousel-track {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+.carousel-track::-webkit-scrollbar {
+    height: 0; /* Chrome, Safari, Opera: reduce to 0 to hide */
+}
+.carousel-track::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+/* Fallback visual treatment for environments that ignore hiding:
+   add small negative margin to pull up any remaining gutter without clipping content.
+*/
+.carousel-track {
+    margin-bottom: -6px;
+}
+
+/* Card and poster styles */
+.carousel-card {
+    transition:
+        transform 200ms ease,
+        box-shadow 200ms ease;
+    will-change: transform;
+}
+.carousel-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* Poster container and image sizing
+   - enforce explicit heights per breakpoint so visible poster sizes are consistent
+   - container keeps aspect ratio and a fixed CSS height; images use object-fit: cover
+   - ensure any Tailwind aspect-ratio helper (.aspect-[2/3]) and Next/Image internals
+     fully fill the container to avoid blank gutters
+*/
+.carousel-poster {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    display: block;
+    aspect-ratio: 2 / 3;
+    /* Default visual height for posters on large screens */
+    height: 260px;
+    max-height: 34vh;
+}
+.carousel-poster img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Ensure Tailwind aspect wrapper and Next/Image internals fill and cover the box.
+   - Next/Image sometimes injects wrapper elements or <img> with different layout styles.
+   - Target the aspect container and common internal nodes to force full coverage.
+*/
+
+/* Next/Image can render an <img> or a span wrapper; cover both.
+   Target both the explicit `.poster-aspect` class and any Tailwind-generated
+   `aspect-[2/3]` container via attribute selector to ensure coverage.
+*/
+.poster-aspect > img,
+.poster-aspect > span,
+.poster-aspect img,
+.poster-aspect span,
+[class*="aspect-[2/3]"] > img,
+[class*="aspect-[2/3]"] img,
+[class*="aspect-[2/3]"] > span,
+[class*="aspect-[2/3]"] span {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center !important;
+    display: block !important;
+}
+
+/* For other potential wrappers (div wrappers that Next/Image may create) */
+.poster-aspect > div,
+[class*="aspect-[2/3]"] > div {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Explicit poster heights per breakpoint (override the container height for consistent visual size) */
+@media (max-width: 1024px) {
+    .carousel-poster {
+        height: 220px;
+    }
+}
+@media (max-width: 640px) {
+    .carousel-poster {
+        height: 170px;
+    }
+}
+@media (max-width: 420px) {
+    .carousel-poster {
+        height: 140px;
+    }
+}
+
+/* Slightly smaller posters on very small screens
+   - keep aspect ratio but allow tiles to scale via min-width/max-width rules;
+   - do not set per-image max-height so crops remain consistent
+*/
+@media (max-width: 420px) {
+    .carousel-track > * {
+        min-width: 120px !important;
+        max-width: 40vw;
+    }
+}
+
+/* Responsive card widths (tunable to show more or fewer items) */
+@media (max-width: 420px) {
+    .carousel-track > * {
+        min-width: 120px !important;
+        max-width: 40vw;
+    }
+}
+
+@media (min-width: 421px) and (max-width: 640px) {
+    .carousel-track > * {
+        min-width: 140px !important;
+        max-width: 36vw;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+    .carousel-track > * {
+        min-width: 160px !important; /* a touch smaller so more items fit */
+        max-width: 28vw;
+    }
+}
+
+@media (min-width: 1024px) {
+    .carousel-track > * {
+        min-width: 190px !important; /* slightly reduced from 200 */
+        max-width: 22vw;
+    }
+}
+
+/* Subtle focus outline for keyboard users */
+.carousel-track > *:focus-within {
+    outline: 2px solid rgba(59, 130, 246, 0.12);
+    outline-offset: 4px;
 }
