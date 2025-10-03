@@ -1,36 +1,278 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MovieStack 🎬
+
+A modern movie discovery and collection management app built with Next.js, featuring authentication, instant search, and integration with The Movie Database (TMDB).
+
+## Features
+
+- 🔐 **Full Authentication System**
+  - User registration and login with JWT tokens
+  - Refresh token rotation for security
+  - Password validation (8+ chars, 1 uppercase or special character)
+  - Protected routes
+
+- 🎬 **Movie Discovery**
+  - Browse popular and top-rated movies
+  - Instant search with real-time results
+  - Server-side rendering for SEO
+  - Beautiful poster grid layout
+
+- 📚 **Personal Collection**
+  - Save movies to your collection
+  - Manage saved movies (add/remove)
+  - Persistent storage with localStorage
+
+- ⚡ **Performance**
+  - Hybrid server/client rendering
+  - Optimized images with Next.js Image
+  - Debounced search for better UX
+  - Automatic token refresh
+
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Database**: SQLite with Prisma ORM
+- **Authentication**: JWT with refresh token rotation
+- **API**: The Movie Database (TMDB)
+- **Security**: bcrypt password hashing, httpOnly cookies
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ and npm
+- TMDB API key ([Get one here](https://www.themoviedb.org/settings/api))
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/villepekkaa/moviestack.git
+cd moviestack
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Edit `.env` and add your configuration:
+```env
+# Database
+DATABASE_URL="file:./dev.db"
+
+# TMDB API
+TMDB_API_KEY=your_tmdb_api_key_here
+
+# JWT Secrets (generate with: openssl rand -base64 32)
+JWT_SECRET=your-super-secret-jwt-key
+JWT_REFRESH_SECRET=your-super-secret-refresh-key
+```
+
+4. Set up the database:
+```bash
+npx prisma migrate dev
+npx prisma generate
+```
+
+5. Run the development server:
+```bash
+npm run dev
+```
+
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Project Structure
+
+```
+moviestack/
+├── src/
+│   ├── app/                    # Next.js App Router pages
+│   │   ├── api/               # API routes
+│   │   │   ├── auth/          # Authentication endpoints
+│   │   │   └── search/        # Movie search endpoint
+│   │   ├── login/             # Login page
+│   │   ├── register/          # Registration page
+│   │   ├── search/            # Search page with instant results
+│   │   ├── my-collection/     # Protected collection page
+│   │   └── layout.tsx         # Root layout
+│   ├── components/            # React components
+│   │   ├── ClientLayout.tsx   # Client-side layout wrapper
+│   │   ├── NavSearch.tsx      # Header search bar
+│   │   └── SearchInstantClient.tsx  # Instant search component
+│   ├── contexts/              # React contexts
+│   │   └── AuthContext.tsx    # Authentication context & hooks
+│   ├── lib/                   # Utility functions
+│   │   ├── auth.ts           # JWT & password utilities
+│   │   └── prisma.ts         # Prisma client
+│   └── generated/            # Prisma generated files
+├── prisma/
+│   ├── schema.prisma         # Database schema
+│   └── migrations/           # Database migrations
+└── public/                   # Static files
+```
+
+## Authentication System
+
+### User Registration
+- Navigate to `/register`
+- Enter email and password (must meet requirements)
+- Automatically logged in after registration
+
+### User Login
+- Navigate to `/login`
+- Enter credentials
+- JWT access token (15 min) + refresh token (7 days)
+
+### Password Requirements
+- Minimum 8 characters
+- At least 1 uppercase letter OR 1 special character
+
+### Protected Routes
+Pages like `/my-collection` require authentication. Unauthenticated users are redirected to `/login`.
+
+## API Routes
+
+### Authentication
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/refresh` - Refresh access token
+- `POST /api/auth/logout` - Logout user
+- `GET /api/auth/me` - Get current user
+
+### Movies
+- `GET /api/search?q=query&page=1` - Search movies
+
+## React Hooks
+
+### `useAuth()`
+Access authentication state and methods:
+```tsx
+import { useAuth } from "@/contexts/AuthContext";
+
+const { user, accessToken, isAuthenticated, login, logout } = useAuth();
+```
+
+### `useRequireAuth(redirectUrl?)`
+Protect components/pages that require authentication:
+```tsx
+import { useRequireAuth } from "@/contexts/AuthContext";
+
+const { isAuthenticated, isLoading } = useRequireAuth("/login");
+```
+
+## Security Features
+
+- ✅ Password hashing with bcrypt (12 rounds)
+- ✅ JWT tokens with HS256 signing
+- ✅ Refresh token rotation
+- ✅ httpOnly cookies for refresh tokens
+- ✅ Automatic token refresh (every 14 minutes)
+- ✅ Secure password validation
+- ✅ TMDB API key stored server-side
+
+## Database Schema
+
+### User
+- `id`: Unique identifier
+- `email`: User email (unique)
+- `passwordHash`: Hashed password
+- `createdAt`: Account creation timestamp
+- `updatedAt`: Last update timestamp
+
+### RefreshToken
+- `id`: Token identifier
+- `token`: JWT refresh token (unique)
+- `userId`: Associated user
+- `expiresAt`: Expiration timestamp
+- `createdAt`: Creation timestamp
+
+## Development
+
+### Run Development Server
+```bash
+npm run dev
+```
+
+### Build for Production
+```bash
+npm run build
+npm start
+```
+
+### Database Commands
+```bash
+# Create migration
+npx prisma migrate dev --name migration_name
+
+# Generate Prisma client
+npx prisma generate
+
+# Open Prisma Studio
+npx prisma studio
+
+# Reset database (warning: deletes all data)
+npx prisma migrate reset
+```
+
+### Generate JWT Secrets
+```bash
+openssl rand -base64 32
+```
+
+## Troubleshooting
+
+### "No refresh token provided"
+- Ensure cookies are enabled in browser
+- Check that `credentials: "include"` is set in fetch calls
+
+### "TMDB server key not configured"
+- Add `TMDB_API_KEY` to your `.env` file
+- Restart the dev server
+
+### Password validation fails
+- Check password meets requirements (8+ chars, 1 uppercase or special char)
+
+### Database errors
+```bash
+# Regenerate Prisma client
+npx prisma generate
+
+# Reset database
+npx prisma migrate reset
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is open source and available under the MIT License.
+
+## Acknowledgments
+
+- Movie data provided by [The Movie Database (TMDB)](https://www.themoviedb.org/)
+- Built with [Next.js](https://nextjs.org/)
+- UI styled with [Tailwind CSS](https://tailwindcss.com/)
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+- [Authentication Documentation](./AUTH_SETUP.md)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [TMDB API Documentation](https://developers.themoviedb.org/3)
+- [Prisma Documentation](https://www.prisma.io/docs)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Made with ❤️ by [villepekkaa](https://github.com/villepekkaa)

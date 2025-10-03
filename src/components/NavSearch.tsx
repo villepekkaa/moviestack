@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
  *
  * The visible "Search" button has been removed per request; the input itself handles submit.
  */
-export default function NavSearch(): JSX.Element {
+export default function NavSearch(): React.JSX.Element {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
