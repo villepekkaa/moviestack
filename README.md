@@ -11,19 +11,23 @@ A modern movie discovery and collection management app built with Next.js, featu
   - Protected routes
 
 - 🎬 **Movie Discovery**
-  - Browse popular and top-rated movies
+  - Browse popular and top-rated movies with carousels
   - Instant search with real-time results
   - Server-side rendering for SEO
-  - Beautiful poster grid layout
+  - Beautiful poster grid layout with consistent sizing
+  - Save movies directly from home page carousels
 
 - 📚 **Personal Collection**
-  - Save movies to your collection
-  - Manage saved movies (add/remove)
-  - Persistent storage with localStorage
+  - Save movies from anywhere (home, search)
+  - One-click add/remove with visual feedback
+  - Manage saved movies in dedicated collection page
+  - Persistent storage with localStorage (requires authentication)
 
-- ⚡ **Performance**
+- **Performance**
   - Hybrid server/client rendering
-  - Optimized images with Next.js Image
+  - Optimized images with Next.js Image component
+  - Fixed aspect ratio posters (2:3) for consistent layout
+  - Smooth horizontal scrolling carousels
   - Debounced search for better UX
   - Automatic token refresh
 

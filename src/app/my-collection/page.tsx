@@ -112,8 +112,8 @@ export default function MyCollectionPage() {
                     />
                   </div>
 
-                  <div className="px-3 py-2">
-                    <h3 className="font-medium text-sm line-clamp-2">
+                  <div className="px-3 py-2 flex flex-col h-full">
+                    <h3 className="font-medium text-sm line-clamp-2 min-h-[2.5em]">
                       {movie.title}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -126,7 +126,7 @@ export default function MyCollectionPage() {
                         : "—"}
                     </p>
 
-                    <div className="mt-3 flex items-center justify-between gap-2">
+                    <div className="mt-3 flex items-end justify-between gap-2 flex-1">
                       <button
                         type="button"
                         onClick={() => removeMovie(movie.id)}

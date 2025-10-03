@@ -175,14 +175,6 @@ export default function SearchInstantClient({
             onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
           />
-          <button
-            type="button"
-            className="rounded-md border px-3 py-2 bg-gray-50 hover:bg-gray-100"
-            onClick={() => setQuery("")}
-            tabIndex={0}
-          >
-            Clear
-          </button>
         </div>
       </form>
 
