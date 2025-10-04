@@ -23,6 +23,14 @@ A modern movie discovery and collection management app built with Next.js, featu
   - Manage saved movies in dedicated collection page
   - Persistent storage in the database (requires authentication)
 
+- ⭐ **My Wishlist & Streaming Availability**
+  - Add movies to your wishlist from home or search
+  - See streaming availability and prices in Finland (JustWatch integration)
+  - Instantly view which services offer each movie (Netflix, Disney+, etc.)
+  - Cheapest rent/buy prices shown (EUR)
+  - Data auto-refreshes every 24h or on demand
+  - Manage wishlist in a dedicated page
+
 - ⭐ **Wishlist with Streaming Availability**
   - Create a wishlist of movies you want to watch
   - Automatic streaming availability lookup via JustWatch (Finland)
@@ -116,7 +124,7 @@ moviestack/
 │   │   ├── register/          # Registration page
 │   │   ├── search/            # Search page with instant results
 │   │   ├── my-collection/     # Protected collection page
-│   │   ├── my-wishlist/       # Protected wishlist page with streaming data
+│   │   ├── my-wishlist/       # Wishlist page with streaming data
 │   │   └── layout.tsx         # Root layout
 │   ├── components/            # React components
 │   │   ├── ClientLayout.tsx               # Client-side layout wrapper
@@ -176,6 +184,15 @@ Pages like `/my-collection` require authentication. Unauthenticated users are re
 - `DELETE /api/collection/[id]` - Remove a movie from user's collection
 
 ### Wishlist
+- `GET /api/wishlist` - Get current user's wishlist (with streaming data)
+- `POST /api/wishlist` - Add a movie to user's wishlist
+- `DELETE /api/wishlist/[id]` - Remove a movie from user's wishlist
+- `POST /api/wishlist/streaming` - Update streaming data for a wishlist item
+
+### Streaming Data
+- `GET /api/justwatch?tmdbId={id}&title={title}` - Get streaming availability from JustWatch (Finland)
+
+### Wishlist
 - `GET /api/wishlist` - Get current user's wishlist with streaming data
 - `POST /api/wishlist` - Add a movie to user's wishlist
 - `DELETE /api/wishlist/[id]` - Remove a movie from user's wishlist
@@ -226,7 +243,7 @@ const {
 - `refreshCollection()`: Manually refresh collection from server
 
 ### `useWishlist()`
-Access the user's wishlist with streaming availability:
+Access the user's wishlist and streaming data:
 ```tsx
 import { useWishlist } from "@/contexts/WishlistContext";
 
@@ -243,13 +260,29 @@ const {
   fetchStreamingData,
 } = useWishlist();
 ```
-- `wishlist`: Array of wishlist items with streaming data
+- `wishlist`: Array of wishlist items (each includes streamingData)
 - `isLoading`, `isSaving`, `isRemoving`, `isFetchingStreaming`: Status flags
 - `isInWishlist(movieId)`: Check if a movie is in the wishlist
-- `addToWishlist(movie)`: Add a movie
+- `addToWishlist(movie)`: Add a movie to wishlist (auto-fetches streaming info)
 - `removeFromWishlist(movieId)`: Remove a movie
 - `refreshWishlist()`: Manually refresh wishlist from server
-- `fetchStreamingData(movieId)`: Fetch/update streaming availability
+- `fetchStreamingData(movieId)`: Force fetch/update streaming availability for a movie
+
+#### Streaming Data Example (wishlist item)
+```js
+{
+  movieId: 603,
+  movieData: { ... },
+  streamingData: {
+    flatrate: [{ providerName: "HBO Max", ... }],
+    rent: [{ providerName: "Blockbuster", price: 3.90, ... }],
+    buy: [{ providerName: "Apple TV", price: 7.99, ... }],
+    cheapestRent: { price: 3.90, currency: "EUR", provider: "Blockbuster" },
+    cheapestBuy: { price: 7.99, currency: "EUR", provider: "Apple TV" },
+    lastUpdated: "2024-06-04T12:34:56Z"
+  }
+}
+```
 
 
 ## Security Features
@@ -284,6 +317,8 @@ const {
 - `movieId`: TMDB movie ID
 - `addedAt`: Timestamp when added
 - `movieData`: JSON blob with movie details
+- `streamingData`: JSON blob with JustWatch streaming offers (see above)
+- `lastStreamingUpdate`: Timestamp of last streaming data fetch
 
 ### WishlistItem
 - `id`: Unique identifier
@@ -321,6 +356,19 @@ npx prisma studio
 # Reset database (warning: deletes all data)
 npx prisma migrate reset
 ```
+
+## My Wishlist Page & Streaming Data
+
+- Access your wishlist at `/my-wishlist`
+- See all movies you've wishlisted, with streaming availability and prices for Finland
+- Streaming info includes:
+  - **Streaming:** All subscription services (e.g. Netflix, Disney+, HBO Max)
+  - **Rent:** Cheapest rental price and provider (EUR)
+  - **Buy:** Cheapest purchase price and provider (EUR)
+- Data auto-refreshes every 24 hours or can be refreshed manually
+- Remove movies or view them on TMDB with one click
+- UI ensures all cards/buttons are aligned, even if some movies have no streaming data
+
 
 ### Generate JWT Secrets
 ```bash
