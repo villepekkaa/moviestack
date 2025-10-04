@@ -47,7 +47,7 @@ A modern movie discovery and collection management app built with Next.js, featu
 - **Styling**: Tailwind CSS
 - **Database**: SQLite with Prisma ORM
 - **Authentication**: JWT with refresh token rotation
-- **APIs**: 
+- **APIs**:
   - The Movie Database (TMDB) for movie data
   - JustWatch (unofficial) for streaming availability
 - **Security**: bcrypt password hashing, httpOnly cookies
@@ -194,11 +194,6 @@ Pages like `/my-collection` require authentication. Unauthenticated users are re
 ### Streaming Data
 - `GET /api/justwatch?tmdbId={id}&title={title}` - Get streaming availability from JustWatch
 
-## React Hooks
-
-
-
-
 ## Security Features
 
 - ✅ Password hashing with bcrypt (12 rounds)
@@ -327,7 +322,7 @@ npx prisma migrate reset
 
 ### About JustWatch API
 
-This app uses the **unofficial** JustWatch API to fetch streaming availability and pricing information. 
+This app uses the **unofficial** JustWatch API to fetch streaming availability and pricing information.
 
 **Important Disclaimers:**
 - This is NOT an official API
