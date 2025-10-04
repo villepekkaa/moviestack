@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCollection } from "@/contexts/CollectionContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 /**
  * Home page: fetches popular + top-rated movies from TMDB (if NEXT_PUBLIC_TMDB_API_KEY is present)
@@ -193,6 +194,13 @@ function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
     isSaving,
     isRemoving,
   } = useCollection();
+  const {
+    isInWishlist,
+    addToWishlist,
+    removeFromWishlist,
+    isSaving: isSavingWishlist,
+    isRemoving: isRemovingWishlist,
+  } = useWishlist();
 
   async function toggleSave(movie: Movie) {
     const inCollection = isInCollection(movie.id);
@@ -200,6 +208,15 @@ function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
       await removeFromCollection(movie.id);
     } else {
       await addToCollection(movie);
+    }
+  }
+
+  async function toggleWishlist(movie: Movie) {
+    const inWishlist = isInWishlist(movie.id);
+    if (inWishlist) {
+      await removeFromWishlist(movie.id);
+    } else {
+      await addToWishlist(movie);
     }
   }
 
@@ -250,6 +267,7 @@ function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
       >
         {movies.map((m) => {
           const isSaved = isInCollection(m.id);
+          const inWishlist = isInWishlist(m.id);
           const posterSrc = m.poster_path
             ? m.poster_path.startsWith("http")
               ? m.poster_path
@@ -281,47 +299,95 @@ function Carousel({ movies, title }: { movies: Movie[]; title: string }) {
                   )}
                 </div>
 
-                {/* Save button overlay */}
+                {/* Button overlays */}
                 {isAuthenticated && (
-                  <button
-                    onClick={() => toggleSave(m)}
-                    disabled={isSaving || isRemoving}
-                    className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-all disabled:opacity-50 ${
-                      isSaved
-                        ? "bg-green-500/90 text-white"
-                        : "bg-black/50 text-white hover:bg-black/70"
-                    }`}
-                    aria-label={
-                      isSaved ? "Remove from collection" : "Add to collection"
-                    }
-                    title={
-                      isSaved ? "Remove from collection" : "Add to collection"
-                    }
-                  >
-                    {isSaved ? (
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 4v16m8-8H4"
-                        />
-                      </svg>
-                    )}
-                  </button>
+                  <>
+                    {/* Collection button (top right) */}
+                    <button
+                      onClick={() => toggleSave(m)}
+                      disabled={isSaving || isRemoving}
+                      className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-sm transition-all disabled:opacity-50 ${
+                        isSaved
+                          ? "bg-green-500/90 text-white"
+                          : "bg-black/50 text-white hover:bg-black/70"
+                      }`}
+                      aria-label={
+                        isSaved ? "Remove from collection" : "Add to collection"
+                      }
+                      title={
+                        isSaved ? "Remove from collection" : "Add to collection"
+                      }
+                    >
+                      {isSaved ? (
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                      )}
+                    </button>
+
+                    {/* Wishlist button (top left) */}
+                    <button
+                      onClick={() => toggleWishlist(m)}
+                      disabled={isSavingWishlist || isRemovingWishlist}
+                      className={`absolute top-2 left-2 p-1.5 rounded-full backdrop-blur-sm transition-all disabled:opacity-50 ${
+                        inWishlist
+                          ? "bg-yellow-500/90 text-white"
+                          : "bg-black/50 text-white hover:bg-black/70"
+                      }`}
+                      aria-label={
+                        inWishlist ? "Remove from wishlist" : "Add to wishlist"
+                      }
+                      title={
+                        inWishlist ? "Remove from wishlist" : "Add to wishlist"
+                      }
+                    >
+                      {inWishlist ? (
+                        <svg
+                          className="w-4 h-4"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
 
