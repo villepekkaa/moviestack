@@ -1,9 +1,10 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useRequireAuth } from "@/contexts/AuthContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import Image from "next/image";
 import Link from "next/link";
+import { StreamingData } from "@/types/justwatch";
 
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 const PLACEHOLDER = "/img/poster-placeholder.png";
@@ -22,16 +23,53 @@ function formatAddedAt(iso: string | undefined) {
 
 export default function MyWishlistPage() {
   useRequireAuth();
-  const { wishlist, isLoading, removeFromWishlist } = useWishlist();
+  const {
+    wishlist,
+    isLoading,
+    removeFromWishlist,
+    fetchStreamingData,
+    isFetchingStreaming,
+  } = useWishlist();
+
+  // Fetch streaming data for all wishlist items on mount and when list changes
+  useEffect(() => {
+    if (wishlist.length === 0) return;
+
+    // Fetch streaming data for each item
+    const fetchAll = async () => {
+      for (const item of wishlist) {
+        // Check if item already has recent streaming data
+        if (item.streamingData && item.lastStreamingUpdate) {
+          const lastUpdate = new Date(item.lastStreamingUpdate);
+          const hoursSinceUpdate =
+            (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
+          if (hoursSinceUpdate < 24) {
+            continue; // Skip if data is less than 24 hours old
+          }
+        }
+        // Fetch streaming data for this item
+        await fetchStreamingData(item.movieId);
+      }
+    };
+
+    fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wishlist.length]); // Only re-run when wishlist length changes
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
       <header className="mb-8">
-        <h1 className="text-3xl font-semibold">My Wishlist</h1>
+        <h1 className="text-3xl font-semibold">My Wishlist 🎬</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Movies you want to watch. ({wishlist.length} item
+          Movies you want to watch with streaming availability in Finland. (
+          {wishlist.length} item
           {wishlist.length !== 1 ? "s" : ""})
         </p>
+        {isFetchingStreaming && (
+          <p className="mt-2 text-xs text-blue-600">
+            Fetching streaming availability...
+          </p>
+        )}
       </header>
 
       {isLoading ? (
@@ -56,6 +94,28 @@ export default function MyWishlistPage() {
             const posterSrc = movie.poster_path
               ? `${IMAGE_BASE}${movie.poster_path}`
               : PLACEHOLDER;
+            const streaming = item.streamingData as StreamingData | null;
+
+            // Debug log
+            console.log(`Movie ${movie.title} streaming data:`, streaming);
+            console.log(`  - Has streamingData: ${!!streaming}`);
+            console.log(
+              `  - flatrate count: ${streaming?.flatrate?.length || 0}`,
+            );
+            console.log(`  - rent count: ${streaming?.rent?.length || 0}`);
+            console.log(`  - buy count: ${streaming?.buy?.length || 0}`);
+            console.log(
+              `  - cheapestRent: ${streaming?.cheapestRent ? JSON.stringify(streaming.cheapestRent) : "null"}`,
+            );
+            console.log(
+              `  - cheapestBuy: ${streaming?.cheapestBuy ? JSON.stringify(streaming.cheapestBuy) : "null"}`,
+            );
+            if (streaming?.flatrate && streaming.flatrate.length > 0) {
+              console.log(
+                `  - flatrate providers:`,
+                streaming.flatrate.map((o) => o.providerName),
+              );
+            }
 
             return (
               <article key={item.id} className="rounded-md bg-transparent">
@@ -93,23 +153,110 @@ export default function MyWishlistPage() {
                       {formatAddedAt(item.addedAt)}
                     </p>
 
-                    <div className="mt-3 flex items-end justify-between gap-2 flex-1">
+                    {/* Streaming availability */}
+                    <div className="mt-2 text-xs">
+                      {!streaming && !isFetchingStreaming && (
+                        <div className="text-yellow-600 dark:text-yellow-400 italic">
+                          Loading streaming data...
+                        </div>
+                      )}
+                      {streaming && (
+                        <>
+                          {streaming.flatrate &&
+                            streaming.flatrate.length > 0 && (
+                              <div className="mb-1">
+                                <span className="font-semibold text-green-700 dark:text-green-400">
+                                  Streaming:
+                                </span>{" "}
+                                <span className="text-muted-foreground">
+                                  {[
+                                    ...new Set(
+                                      streaming.flatrate.map(
+                                        (o) => o.providerName,
+                                      ),
+                                    ),
+                                  ].join(", ")}
+                                </span>
+                              </div>
+                            )}
+                          {streaming.cheapestRent &&
+                            !isNaN(Number(streaming.cheapestRent.price)) &&
+                            Number(streaming.cheapestRent.price) > 0 && (
+                              <div className="mb-1">
+                                <span className="font-semibold text-blue-700 dark:text-blue-400">
+                                  Rent:
+                                </span>{" "}
+                                <span className="text-muted-foreground">
+                                  {Number(streaming.cheapestRent.price).toFixed(
+                                    2,
+                                  )}{" "}
+                                  {streaming.cheapestRent.currency} (
+                                  {streaming.cheapestRent.provider})
+                                </span>
+                              </div>
+                            )}
+                          {streaming.cheapestBuy &&
+                            !isNaN(Number(streaming.cheapestBuy.price)) &&
+                            Number(streaming.cheapestBuy.price) > 0 && (
+                              <div className="mb-1">
+                                <span className="font-semibold text-purple-700 dark:text-purple-400">
+                                  Buy:
+                                </span>{" "}
+                                <span className="text-muted-foreground">
+                                  {Number(streaming.cheapestBuy.price).toFixed(
+                                    2,
+                                  )}{" "}
+                                  {streaming.cheapestBuy.currency} (
+                                  {streaming.cheapestBuy.provider})
+                                </span>
+                              </div>
+                            )}
+                          {(!streaming.flatrate ||
+                            streaming.flatrate.length === 0) &&
+                            !streaming.cheapestRent &&
+                            !streaming.cheapestBuy && (
+                              <div className="text-muted-foreground italic">
+                                Not available in Finland
+                              </div>
+                            )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-2 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => removeFromWishlist(movie.id)}
+                          className="rounded px-3 py-1 text-sm font-medium border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 transition-colors"
+                        >
+                          Remove
+                        </button>
+
+                        <Link
+                          href={`https://www.themoviedb.org/movie/${movie.id}`}
+                          className="text-xs text-muted-foreground hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View on TMDB
+                        </Link>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => removeFromWishlist(movie.id)}
-                        className="rounded px-3 py-1 text-sm font-medium border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 transition-colors"
+                        onClick={() => {
+                          console.log(
+                            `Manually fetching streaming data for ${movie.title} (${movie.id})`,
+                          );
+                          fetchStreamingData(movie.id);
+                        }}
+                        disabled={isFetchingStreaming}
+                        className="rounded px-3 py-1 text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-colors disabled:opacity-50"
                       >
-                        Remove
+                        {isFetchingStreaming
+                          ? "Fetching..."
+                          : "🔄 Refresh Streaming Data"}
                       </button>
-
-                      <Link
-                        href={`https://www.themoviedb.org/movie/${movie.id}`}
-                        className="text-xs text-muted-foreground hover:underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View on TMDB
-                      </Link>
                     </div>
                   </div>
                 </div>

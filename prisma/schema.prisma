@@ -46,12 +46,14 @@ model CollectionItem {
 }
 
 model WishlistItem {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  movieId   Int
-  addedAt   DateTime @default(now())
-  movieData Json
+  id                   String    @id @default(cuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movieId              Int
+  addedAt              DateTime  @default(now())
+  movieData            Json
+  streamingData        Json?
+  lastStreamingUpdate  DateTime?
 
   @@unique([userId, movieId])
   @@index([userId])

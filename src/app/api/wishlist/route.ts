@@ -35,6 +35,8 @@ export async function GET(req: NextRequest) {
         movieId: item.movieId,
         addedAt: item.addedAt,
         movieData: item.movieData,
+        streamingData: item.streamingData,
+        lastStreamingUpdate: item.lastStreamingUpdate,
       })),
     });
   } catch (error: any) {
@@ -101,10 +103,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    console.log(
-      "[API /api/wishlist POST] Movie added successfully:",
-      item.id,
-    );
+    console.log("[API /api/wishlist POST] Movie added successfully:", item.id);
     return NextResponse.json({
       id: item.id,
       movieId: item.movieId,

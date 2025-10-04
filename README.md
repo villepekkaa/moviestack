@@ -23,6 +23,14 @@ A modern movie discovery and collection management app built with Next.js, featu
   - Manage saved movies in dedicated collection page
   - Persistent storage in the database (requires authentication)
 
+- ⭐ **Wishlist with Streaming Availability**
+  - Create a wishlist of movies you want to watch
+  - Automatic streaming availability lookup via JustWatch (Finland)
+  - See which streaming services offer each movie
+  - View cheapest rental and purchase prices
+  - Data cached for 24 hours to minimize API calls
+  - Works alongside collection feature
+
 - **Performance**
   - Hybrid server/client rendering
   - Optimized images with Next.js Image component
@@ -38,7 +46,9 @@ A modern movie discovery and collection management app built with Next.js, featu
 - **Styling**: Tailwind CSS
 - **Database**: SQLite with Prisma ORM
 - **Authentication**: JWT with refresh token rotation
-- **API**: The Movie Database (TMDB)
+- **APIs**: 
+  - The Movie Database (TMDB) for movie data
+  - JustWatch (unofficial) for streaming availability
 - **Security**: bcrypt password hashing, httpOnly cookies
 
 ## Getting Started
@@ -106,6 +116,7 @@ moviestack/
 │   │   ├── register/          # Registration page
 │   │   ├── search/            # Search page with instant results
 │   │   ├── my-collection/     # Protected collection page
+│   │   ├── my-wishlist/       # Protected wishlist page with streaming data
 │   │   └── layout.tsx         # Root layout
 │   ├── components/            # React components
 │   │   ├── ClientLayout.tsx               # Client-side layout wrapper
@@ -114,10 +125,13 @@ moviestack/
 │   │   └── SearchInstantClientWrapper.tsx # Wrapper for instant search (client boundary)
 │   ├── contexts/              # React contexts
 │   │   ├── AuthContext.tsx                # Authentication context & hooks
-│   │   └── CollectionContext.tsx          # Collection context & hooks
+│   │   ├── CollectionContext.tsx          # Collection context & hooks
+│   │   └── WishlistContext.tsx            # Wishlist context & hooks
 │   ├── lib/                   # Utility functions
-│   │   ├── auth.ts           # JWT & password utilities
-│   │   └── prisma.ts         # Prisma client
+│   │   ├── auth.ts            # JWT & password utilities
+│   │   ├── prisma.ts          # Prisma client
+│   │   └── justwatch/         # JustWatch API client
+│   │       └── client.ts      # Streaming availability service
 │   └── generated/            # Prisma generated files
 ├── prisma/
 │   ├── schema.prisma         # Database schema
@@ -161,6 +175,15 @@ Pages like `/my-collection` require authentication. Unauthenticated users are re
 - `POST /api/collection` - Add a movie to user's collection
 - `DELETE /api/collection/[id]` - Remove a movie from user's collection
 
+### Wishlist
+- `GET /api/wishlist` - Get current user's wishlist with streaming data
+- `POST /api/wishlist` - Add a movie to user's wishlist
+- `DELETE /api/wishlist/[id]` - Remove a movie from user's wishlist
+- `POST /api/wishlist/streaming` - Update streaming availability for a movie
+
+### Streaming Data
+- `GET /api/justwatch?tmdbId={id}&title={title}` - Get streaming availability from JustWatch
+
 ## React Hooks
 
 ### `useAuth()`
@@ -202,6 +225,32 @@ const {
 - `removeFromCollection(movieId)`: Remove a movie
 - `refreshCollection()`: Manually refresh collection from server
 
+### `useWishlist()`
+Access the user's wishlist with streaming availability:
+```tsx
+import { useWishlist } from "@/contexts/WishlistContext";
+
+const {
+  wishlist,
+  isLoading,
+  isSaving,
+  isRemoving,
+  isFetchingStreaming,
+  isInWishlist,
+  addToWishlist,
+  removeFromWishlist,
+  refreshWishlist,
+  fetchStreamingData,
+} = useWishlist();
+```
+- `wishlist`: Array of wishlist items with streaming data
+- `isLoading`, `isSaving`, `isRemoving`, `isFetchingStreaming`: Status flags
+- `isInWishlist(movieId)`: Check if a movie is in the wishlist
+- `addToWishlist(movie)`: Add a movie
+- `removeFromWishlist(movieId)`: Remove a movie
+- `refreshWishlist()`: Manually refresh wishlist from server
+- `fetchStreamingData(movieId)`: Fetch/update streaming availability
+
 
 ## Security Features
 
@@ -235,6 +284,15 @@ const {
 - `movieId`: TMDB movie ID
 - `addedAt`: Timestamp when added
 - `movieData`: JSON blob with movie details
+
+### WishlistItem
+- `id`: Unique identifier
+- `userId`: Associated user
+- `movieId`: TMDB movie ID
+- `addedAt`: Timestamp when added
+- `movieData`: JSON blob with movie details
+- `streamingData`: JSON blob with JustWatch streaming offers
+- `lastStreamingUpdate`: Timestamp of last streaming data fetch
 
 ## Development
 
@@ -290,6 +348,55 @@ npx prisma generate
 # Reset database
 npx prisma migrate reset
 ```
+
+### JustWatch streaming data not showing
+- JustWatch uses an unofficial API that may change or be unavailable
+- Streaming data is cached for 24 hours per movie
+- If no data appears, the movie may not be available in Finland
+- Check browser console for API errors
+- JustWatch API is for non-commercial use only
+
+### Streaming data shows "Not available in Finland"
+- The movie may not be released in Finland yet
+- Try checking on [JustWatch.com](https://www.justwatch.com/fi) directly
+- Data is specific to Finland (FI) locale
+
+## JustWatch Integration
+
+### About JustWatch API
+
+This app uses the **unofficial** JustWatch API to fetch streaming availability and pricing information. 
+
+**Important Disclaimers:**
+- This is NOT an official API
+- Use for non-commercial purposes only
+- The API may change or become unavailable at any time
+- Be respectful with API calls to prevent overload
+- Currently configured for **Finland (FI)** locale
+
+### How It Works
+
+1. When you add a movie to your wishlist, it's saved to the database
+2. The app automatically fetches streaming availability from JustWatch
+3. Data is cached in the database for 24 hours
+4. After 24 hours, data is refreshed when you view your wishlist
+
+### Streaming Data Includes
+
+- **Subscription services** (Netflix, Disney+, etc.)
+- **Rental prices** with cheapest option highlighted
+- **Purchase prices** with cheapest option highlighted
+- **Free options** (with ads or completely free)
+
+### Changing Country/Locale
+
+To change from Finland to another country, edit:
+```typescript
+// src/lib/justwatch/client.ts
+export const justWatchClient = new JustWatchClient('FI'); // Change 'FI' to your country code
+```
+
+Common country codes: `US`, `GB`, `DE`, `SE`, `NO`, `DK`, `FI`
 
 ## Contributing
 

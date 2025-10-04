@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Movie } from "@/types/movie";
+import { StreamingData } from "@/types/justwatch";
 
 // Types
 export type WishlistItem = {
@@ -15,6 +16,8 @@ export type WishlistItem = {
   movieId: number;
   addedAt: string;
   movieData: Movie;
+  streamingData?: StreamingData | null;
+  lastStreamingUpdate?: string | null;
 };
 
 type WishlistContextType = {
@@ -22,26 +25,25 @@ type WishlistContextType = {
   isLoading: boolean;
   isSaving: boolean;
   isRemoving: boolean;
+  isFetchingStreaming: boolean;
   isInWishlist: (movieId: number) => boolean;
   addToWishlist: (movie: Movie) => Promise<void>;
   removeFromWishlist: (movieId: number) => Promise<void>;
   refreshWishlist: () => Promise<void>;
+  fetchStreamingData: (movieId: number) => Promise<void>;
 };
 
 const WishlistContext = createContext<WishlistContextType | undefined>(
   undefined,
 );
 
-export function WishlistProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const { accessToken, isAuthenticated } = useAuth();
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isFetchingStreaming, setIsFetchingStreaming] = useState(false);
 
   // Fetch wishlist from server
   const fetchWishlist = useCallback(async () => {
@@ -93,10 +95,7 @@ export function WishlistProvider({
       if (!isAuthenticated || !accessToken) return;
       setIsSaving(true);
       try {
-        console.log(
-          "[WishlistProvider] Adding movie to wishlist:",
-          movie.id,
-        );
+        console.log("[WishlistProvider] Adding movie to wishlist:", movie.id);
         const res = await fetch("/api/wishlist", {
           method: "POST",
           headers: {
@@ -154,10 +153,7 @@ export function WishlistProvider({
           console.error("[WishlistProvider] Remove failed:", res.status);
           throw new Error("Failed to remove from wishlist");
         }
-        console.log(
-          "[WishlistProvider] Movie removed successfully:",
-          movieId,
-        );
+        console.log("[WishlistProvider] Movie removed successfully:", movieId);
         setWishlist((prev) => prev.filter((w) => w.movieId !== movieId));
       } finally {
         setIsRemoving(false);
@@ -172,6 +168,91 @@ export function WishlistProvider({
     [wishlist],
   );
 
+  // Fetch streaming data for a specific movie
+  const fetchStreamingData = useCallback(
+    async (movieId: number) => {
+      if (!isAuthenticated || !accessToken) return;
+
+      setIsFetchingStreaming(true);
+      try {
+        console.log("[WishlistProvider] Fetching streaming data for:", movieId);
+
+        // Get the current wishlist item
+        const currentWishlist = await fetch("/api/wishlist", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          credentials: "include",
+        });
+
+        if (!currentWishlist.ok) {
+          console.error("[WishlistProvider] Failed to get wishlist");
+          return;
+        }
+
+        const wishlistData = await currentWishlist.json();
+        const item = wishlistData.wishlist.find(
+          (w: WishlistItem) => w.movieId === movieId,
+        );
+
+        if (!item) {
+          console.warn("[WishlistProvider] Movie not in wishlist:", movieId);
+          return;
+        }
+
+        // Check if we have recent data (less than 24 hours old)
+        if (item.lastStreamingUpdate) {
+          const lastUpdate = new Date(item.lastStreamingUpdate);
+          const hoursSinceUpdate =
+            (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60);
+          if (hoursSinceUpdate < 24) {
+            console.log(
+              "[WishlistProvider] Using cached streaming data for:",
+              movieId,
+            );
+            return;
+          }
+        }
+
+        const movie = item.movieData;
+        const res = await fetch(`/api/wishlist/streaming`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            movieId,
+            title: movie.title,
+          }),
+        });
+
+        if (!res.ok) {
+          console.error(
+            "[WishlistProvider] Streaming fetch failed:",
+            res.status,
+          );
+          return;
+        }
+
+        const result = await res.json();
+        console.log("[WishlistProvider] Received streaming data:", result);
+
+        // Refresh the entire wishlist from server to get updated data
+        await fetchWishlist();
+      } catch (error) {
+        console.error(
+          "[WishlistProvider] Error fetching streaming data:",
+          error,
+        );
+      } finally {
+        setIsFetchingStreaming(false);
+      }
+    },
+    [isAuthenticated, accessToken, fetchWishlist],
+  );
+
   // Manual refresh
   const refreshWishlist = fetchWishlist;
 
@@ -180,10 +261,12 @@ export function WishlistProvider({
     isLoading,
     isSaving,
     isRemoving,
+    isFetchingStreaming,
     isInWishlist,
     addToWishlist,
     removeFromWishlist,
     refreshWishlist,
+    fetchStreamingData,
   };
 
   return (
