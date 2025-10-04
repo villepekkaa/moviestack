@@ -108,11 +108,13 @@ moviestack/
 │   │   ├── my-collection/     # Protected collection page
 │   │   └── layout.tsx         # Root layout
 │   ├── components/            # React components
-│   │   ├── ClientLayout.tsx   # Client-side layout wrapper
-│   │   ├── NavSearch.tsx      # Header search bar
-│   │   └── SearchInstantClient.tsx  # Instant search component
+│   │   ├── ClientLayout.tsx               # Client-side layout wrapper
+│   │   ├── NavSearch.tsx                  # Header search bar
+│   │   ├── SearchInstantClient.tsx        # Instant search component
+│   │   └── SearchInstantClientWrapper.tsx # Wrapper for instant search (client boundary)
 │   ├── contexts/              # React contexts
-│   │   └── AuthContext.tsx    # Authentication context & hooks
+│   │   ├── AuthContext.tsx                # Authentication context & hooks
+│   │   └── CollectionContext.tsx          # Collection context & hooks
 │   ├── lib/                   # Utility functions
 │   │   ├── auth.ts           # JWT & password utilities
 │   │   └── prisma.ts         # Prisma client
@@ -176,6 +178,30 @@ import { useRequireAuth } from "@/contexts/AuthContext";
 
 const { isAuthenticated, isLoading } = useRequireAuth("/login");
 ```
+
+### `useCollection()`
+Access the user's movie collection and collection management methods:
+```tsx
+import { useCollection } from "@/contexts/CollectionContext";
+
+const {
+  collection,
+  isLoading,
+  isSaving,
+  isRemoving,
+  isInCollection,
+  addToCollection,
+  removeFromCollection,
+  refreshCollection,
+} = useCollection();
+```
+- `collection`: Array of collection items
+- `isLoading`, `isSaving`, `isRemoving`: Status flags
+- `isInCollection(movieId)`: Check if a movie is in the collection
+- `addToCollection(movie)`: Add a movie
+- `removeFromCollection(movieId)`: Remove a movie
+- `refreshCollection()`: Manually refresh collection from server
+
 
 ## Security Features
 
