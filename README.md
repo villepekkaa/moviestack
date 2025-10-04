@@ -266,19 +266,6 @@ npx prisma studio
 npx prisma migrate reset
 ```
 
-## My Wishlist Page & Streaming Data
-
-- Access your wishlist at `/my-wishlist`
-- See all movies you've wishlisted, with streaming availability and prices for Finland
-- Streaming info includes:
-  - **Streaming:** All subscription services (e.g. Netflix, Disney+, HBO Max)
-  - **Rent:** Cheapest rental price and provider (EUR)
-  - **Buy:** Cheapest purchase price and provider (EUR)
-- Data auto-refreshes every 24 hours or can be refreshed manually
-- Remove movies or view them on TMDB with one click
-- UI ensures all cards/buttons are aligned, even if some movies have no streaming data
-
-
 ### Generate JWT Secrets
 ```bash
 openssl rand -base64 32
