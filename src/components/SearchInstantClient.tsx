@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useCollection } from "@/contexts/CollectionContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
 
 type TmdbMovie = {
@@ -57,6 +58,13 @@ export default function SearchInstantClient({
     isSaving,
     isRemoving,
   } = useCollection();
+  const {
+    isInWishlist,
+    addToWishlist,
+    removeFromWishlist,
+    isSaving: isSavingWishlist,
+    isRemoving: isRemovingWishlist,
+  } = useWishlist();
 
   // Save/Unsave logic
   async function toggleSave(movie: TmdbMovie) {
@@ -65,6 +73,15 @@ export default function SearchInstantClient({
       await removeFromCollection(movie.id);
     } else {
       await addToCollection(movie);
+    }
+  }
+
+  async function toggleWishlist(movie: TmdbMovie) {
+    const inWishlist = isInWishlist(movie.id);
+    if (inWishlist) {
+      await removeFromWishlist(movie.id);
+    } else {
+      await addToWishlist(movie);
     }
   }
 
@@ -194,6 +211,7 @@ export default function SearchInstantClient({
                 ? `${IMAGE_BASE}${m.poster_path}`
                 : PLACEHOLDER;
               const isSaved = isInCollection(m.id);
+              const inWishlist = isInWishlist(m.id);
               return (
                 <article key={m.id} className="rounded-md bg-transparent">
                   <div className="rounded-md overflow-hidden shadow-sm bg-gray-900/10">
@@ -223,23 +241,47 @@ export default function SearchInstantClient({
                           ? Number(m.vote_average).toFixed(1)
                           : "—"}
                       </p>
-                      <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="mt-3 flex items-center gap-2">
                         {isAuthenticated && (
-                          <button
-                            type="button"
-                            className={`save-toggle rounded px-3 py-1 text-sm font-medium border ${
-                              isSaved ? "bg-foreground text-background" : ""
-                            }`}
-                            aria-pressed={isSaved}
-                            onClick={() => toggleSave(m)}
-                            disabled={isSaving || isRemoving}
-                          >
-                            {isSaving || isRemoving
-                              ? "..."
-                              : isSaved
-                                ? "Saved"
-                                : "Save"}
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className={`save-toggle rounded px-3 py-1 text-sm font-medium border ${
+                                isSaved ? "bg-foreground text-background" : ""
+                              }`}
+                              aria-pressed={isSaved}
+                              onClick={() => toggleSave(m)}
+                              disabled={isSaving || isRemoving}
+                            >
+                              {isSaving || isRemoving
+                                ? "..."
+                                : isSaved
+                                  ? "Saved"
+                                  : "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              className={`rounded px-3 py-1 text-sm font-medium border ${
+                                inWishlist
+                                  ? "bg-yellow-500 text-white border-yellow-600"
+                                  : ""
+                              }`}
+                              aria-pressed={inWishlist}
+                              onClick={() => toggleWishlist(m)}
+                              disabled={isSavingWishlist || isRemovingWishlist}
+                              title={
+                                inWishlist
+                                  ? "Remove from wishlist"
+                                  : "Add to wishlist"
+                              }
+                            >
+                              {isSavingWishlist || isRemovingWishlist
+                                ? "..."
+                                : inWishlist
+                                  ? "♥"
+                                  : "♡"}
+                            </button>
+                          </>
                         )}
                         <a
                           href={`https://www.themoviedb.org/movie/${m.id}`}

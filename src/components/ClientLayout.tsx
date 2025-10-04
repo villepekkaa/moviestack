@@ -3,6 +3,8 @@ import React from "react";
 import Link from "next/link";
 import NavSearch from "./NavSearch";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CollectionProvider } from "@/contexts/CollectionContext";
+import { WishlistProvider } from "@/contexts/WishlistContext";
 
 function HeaderContent() {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
@@ -20,11 +22,18 @@ function HeaderContent() {
                 </Link>
               </li>
               {isAuthenticated && (
-                <li>
-                  <Link href="/my-collection" className="hover:underline">
-                    My Collection
-                  </Link>
-                </li>
+                <>
+                  <li>
+                    <Link href="/my-collection" className="hover:underline">
+                      My Collection
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/my-wishlist" className="hover:underline">
+                      My Wishlist
+                    </Link>
+                  </li>
+                </>
               )}
             </ul>
           </nav>
@@ -79,8 +88,6 @@ function Footer() {
   );
 }
 
-import { CollectionProvider } from "@/contexts/CollectionContext";
-
 export default function ClientLayout({
   children,
 }: {
@@ -89,11 +96,13 @@ export default function ClientLayout({
   return (
     <AuthProvider>
       <CollectionProvider>
-        <HeaderContent />
-        <main className="flex-1 max-w-5xl mx-auto px-6 py-8 w-full">
-          {children}
-        </main>
-        <Footer />
+        <WishlistProvider>
+          <HeaderContent />
+          <main className="flex-1 max-w-5xl mx-auto px-6 py-8 w-full">
+            {children}
+          </main>
+          <Footer />
+        </WishlistProvider>
       </CollectionProvider>
     </AuthProvider>
   );

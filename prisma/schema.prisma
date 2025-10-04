@@ -19,6 +19,7 @@ model User {
   updatedAt       DateTime         @updatedAt
   refreshTokens   RefreshToken[]
   collectionItems CollectionItem[]
+  wishlistItems   WishlistItem[]
 }
 
 model RefreshToken {
@@ -33,6 +34,18 @@ model RefreshToken {
 }
 
 model CollectionItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movieId   Int
+  addedAt   DateTime @default(now())
+  movieData Json
+
+  @@unique([userId, movieId])
+  @@index([userId])
+}
+
+model WishlistItem {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
