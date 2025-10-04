@@ -21,7 +21,7 @@ A modern movie discovery and collection management app built with Next.js, featu
   - Save movies from anywhere (home, search)
   - One-click add/remove with visual feedback
   - Manage saved movies in dedicated collection page
-  - Persistent storage with localStorage (requires authentication)
+  - Persistent storage in the database (requires authentication)
 
 - **Performance**
   - Hybrid server/client rendering
@@ -100,6 +100,7 @@ moviestack/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── api/               # API routes
 │   │   │   ├── auth/          # Authentication endpoints
+│   │   │   ├── collection/    # Collection management endpoints
 │   │   │   └── search/        # Movie search endpoint
 │   │   ├── login/             # Login page
 │   │   ├── register/          # Registration page
@@ -153,6 +154,11 @@ Pages like `/my-collection` require authentication. Unauthenticated users are re
 ### Movies
 - `GET /api/search?q=query&page=1` - Search movies
 
+### Collection
+- `GET /api/collection` - Get current user's collection
+- `POST /api/collection` - Add a movie to user's collection
+- `DELETE /api/collection/[id]` - Remove a movie from user's collection
+
 ## React Hooks
 
 ### `useAuth()`
@@ -196,6 +202,13 @@ const { isAuthenticated, isLoading } = useRequireAuth("/login");
 - `userId`: Associated user
 - `expiresAt`: Expiration timestamp
 - `createdAt`: Creation timestamp
+
+### CollectionItem
+- `id`: Unique identifier
+- `userId`: Associated user
+- `movieId`: TMDB movie ID
+- `addedAt`: Timestamp when added
+- `movieData`: JSON blob with movie details
 
 ## Development
 
