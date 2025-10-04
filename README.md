@@ -30,14 +30,7 @@ A modern movie discovery and collection management app built with Next.js, featu
   - Cheapest rent/buy prices shown (EUR)
   - Data auto-refreshes every 24h or on demand
   - Manage wishlist in a dedicated page
-
-- ⭐ **Wishlist with Streaming Availability**
-  - Create a wishlist of movies you want to watch
-  - Automatic streaming availability lookup via JustWatch (Finland)
-  - See which streaming services offer each movie
-  - View cheapest rental and purchase prices
-  - Data cached for 24 hours to minimize API calls
-  - Works alongside collection feature
+  - Persistent storage in the database (requires authentication)
 
 - **Performance**
   - Hybrid server/client rendering
@@ -203,86 +196,7 @@ Pages like `/my-collection` require authentication. Unauthenticated users are re
 
 ## React Hooks
 
-### `useAuth()`
-Access authentication state and methods:
-```tsx
-import { useAuth } from "@/contexts/AuthContext";
 
-const { user, accessToken, isAuthenticated, login, logout } = useAuth();
-```
-
-### `useRequireAuth(redirectUrl?)`
-Protect components/pages that require authentication:
-```tsx
-import { useRequireAuth } from "@/contexts/AuthContext";
-
-const { isAuthenticated, isLoading } = useRequireAuth("/login");
-```
-
-### `useCollection()`
-Access the user's movie collection and collection management methods:
-```tsx
-import { useCollection } from "@/contexts/CollectionContext";
-
-const {
-  collection,
-  isLoading,
-  isSaving,
-  isRemoving,
-  isInCollection,
-  addToCollection,
-  removeFromCollection,
-  refreshCollection,
-} = useCollection();
-```
-- `collection`: Array of collection items
-- `isLoading`, `isSaving`, `isRemoving`: Status flags
-- `isInCollection(movieId)`: Check if a movie is in the collection
-- `addToCollection(movie)`: Add a movie
-- `removeFromCollection(movieId)`: Remove a movie
-- `refreshCollection()`: Manually refresh collection from server
-
-### `useWishlist()`
-Access the user's wishlist and streaming data:
-```tsx
-import { useWishlist } from "@/contexts/WishlistContext";
-
-const {
-  wishlist,
-  isLoading,
-  isSaving,
-  isRemoving,
-  isFetchingStreaming,
-  isInWishlist,
-  addToWishlist,
-  removeFromWishlist,
-  refreshWishlist,
-  fetchStreamingData,
-} = useWishlist();
-```
-- `wishlist`: Array of wishlist items (each includes streamingData)
-- `isLoading`, `isSaving`, `isRemoving`, `isFetchingStreaming`: Status flags
-- `isInWishlist(movieId)`: Check if a movie is in the wishlist
-- `addToWishlist(movie)`: Add a movie to wishlist (auto-fetches streaming info)
-- `removeFromWishlist(movieId)`: Remove a movie
-- `refreshWishlist()`: Manually refresh wishlist from server
-- `fetchStreamingData(movieId)`: Force fetch/update streaming availability for a movie
-
-#### Streaming Data Example (wishlist item)
-```js
-{
-  movieId: 603,
-  movieData: { ... },
-  streamingData: {
-    flatrate: [{ providerName: "HBO Max", ... }],
-    rent: [{ providerName: "Blockbuster", price: 3.90, ... }],
-    buy: [{ providerName: "Apple TV", price: 7.99, ... }],
-    cheapestRent: { price: 3.90, currency: "EUR", provider: "Blockbuster" },
-    cheapestBuy: { price: 7.99, currency: "EUR", provider: "Apple TV" },
-    lastUpdated: "2024-06-04T12:34:56Z"
-  }
-}
-```
 
 
 ## Security Features
