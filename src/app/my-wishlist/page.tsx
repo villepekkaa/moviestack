@@ -118,9 +118,12 @@ export default function MyWishlistPage() {
             }
 
             return (
-              <article key={item.id} className="rounded-md bg-transparent">
-                <div className="rounded-md overflow-hidden shadow-sm bg-gray-900/10">
-                  <div className="bg-gray-100 dark:bg-gray-800 w-full aspect-[2/3] relative overflow-hidden">
+              <article
+                key={item.id}
+                className="rounded-md bg-transparent flex flex-col h-full"
+              >
+                <div className="rounded-md overflow-hidden shadow-sm bg-gray-900/10 flex flex-col h-full">
+                  <div className="bg-gray-100 dark:bg-gray-800 w-full aspect-[2/3] relative overflow-hidden flex-shrink-0">
                     <Image
                       src={posterSrc}
                       alt={movie.title}
@@ -136,7 +139,7 @@ export default function MyWishlistPage() {
                     />
                   </div>
 
-                  <div className="px-3 py-2 flex flex-col h-full">
+                  <div className="px-3 py-3 flex flex-col flex-1">
                     <h3 className="font-medium text-sm line-clamp-2 min-h-[2.5em]">
                       {movie.title}
                     </h3>
@@ -154,7 +157,7 @@ export default function MyWishlistPage() {
                     </p>
 
                     {/* Streaming availability */}
-                    <div className="mt-2 text-xs">
+                    <div className="mt-2 text-xs flex-1">
                       {!streaming && !isFetchingStreaming && (
                         <div className="text-yellow-600 dark:text-yellow-400 italic">
                           Loading streaming data...
@@ -223,7 +226,7 @@ export default function MyWishlistPage() {
                       )}
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-2 flex-1">
+                    <div className="mt-auto pt-3 flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
                         <button
                           type="button"
